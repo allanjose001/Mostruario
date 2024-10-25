@@ -79,46 +79,54 @@ app.get('/itens', async (req, res) => {
     }
 });
 
-app.delete('/itens/:id', async(req, res) => {
-    const { id } = req.params;
+app.delete('/itens/:nome', async(req, res) => {
+    const { nome } = req.params;
 
     try {
         //da um get no item desejado
-        const { data: item, error: getItemError } = await supabase
+        const { data: itens, error: getItemError } = await supabase
             .from('itens')
             .select('imagem_url')
-            .eq('id', id)
-            .single();
+            .eq('nome', nome);
+
         if (getItemError) {
             throw getItemError;
         }
         
-        if (!item) {
+        //verifica se encontrou algum item
+        if (!itens || itens.length === 0) {
             return res.status(404).json({ message: 'Item não encontrado' });
         }
 
-        //pega o nome da imagem a partir do url dela
-        const imagemNome = item.imagem_url.split('/').pop();
-        console.log('Nome da imagem a ser deletada: ', imagemNome);
+        for (let item of itens) {
+            if (item.imagem_url) {
 
-        //finalmente, deleta a imagem do bucket
-        const { error: deleteImageError } = await supabase.storage
-            .from('imagens')
-            .remove([imagemNome]);
-        
-        if (deleteImageError) {
-            console.error("erro ao deletar imagem: ", deleteImageError);
-            throw deleteImageError;
-        }
+                //pega o nome da imagem a partir do url dela
+                const imagemNome = item.imagem_url.split('/').pop();
+                console.log('Nome da imagem a ser deletada: ', imagemNome);
 
-        //por fim, deleta a tabela do banco de dados
-        const { error: deleteItemError } = await supabase
-            .from('itens')
-            .delete()
-            .eq('id', id);
+                //finalmente, deleta a imagem do bucket
+                const { error: deleteImageError } = await supabase.storage
+                    .from('imagens')
+                    .remove([imagemNome]);
+                
+                if (deleteImageError) {
+                    console.error("erro ao deletar imagem: ", deleteImageError);
+                    throw deleteImageError;
+                }
+            } else {
+                console.log("item não possuia uma URL de imagem associada.");
+            }
 
-        if (deleteItemError) {
-            throw deleteItemError;
+            //por fim, deleta a tabela do banco de dados
+            const { error: deleteItemError } = await supabase
+                .from('itens')
+                .delete()
+                .eq('nome', nome);
+
+            if (deleteItemError) {
+                throw deleteItemError;
+            }
         }
 
         res.status(200).json({ message: 'Item deletado com sucesso' });
