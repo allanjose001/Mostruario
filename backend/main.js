@@ -24,6 +24,7 @@ const upload = multer({
 });
 
 const app = express();
+app.use(express.json()); //interpretador de Jsons
 
 //função de salvar a imagem
 app.post('/fotos', upload.single('imagem'), async (req, res) => {
@@ -68,7 +69,7 @@ app.post('/fotos', upload.single('imagem'), async (req, res) => {
     }
 });
 
-//listar tudo do mostruario: getAll
+//listar tudo do mostruario: GET
 app.get('/itens', async (req, res) => {
     try {
         const { data: itens, error } = await supabase.from('itens').select('*');
@@ -79,15 +80,55 @@ app.get('/itens', async (req, res) => {
     }
 });
 
-app.delete('/itens/:nome', async(req, res) => {
-    const { nome } = req.params;
+//atualizar itens por id, PUT
+
+app.put('/itens/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nome, descricao, preco, imagem_url } = req.body;
+
+    try {
+        const { data: existingItem, error: fetchError } = await supabase
+            .from('itens')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) {
+            throw fetchError;
+        }
+
+        if (!existingItem) {
+            return res.status(404).json({ message: 'item não encontrado' });
+        }
+
+        const { data, error } = await supabase
+            .from('itens')
+            .update({ nome, descricao, preco, imagem_url })
+            .eq('id', id);
+
+        if (error) {
+            throw error;
+        }
+
+        res.status(200).json({ message: 'item atualizado com sucesso', data });
+    
+    } catch (err) {
+        console.error('Erro ao atualizar o item: ', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+//deletar itens por ID, DELETE
+app.delete('/itens/:id', async(req, res) => {
+    const { id } = req.params;
 
     try {
         //da um get no item desejado
         const { data: itens, error: getItemError } = await supabase
             .from('itens')
             .select('imagem_url')
-            .eq('nome', nome);
+            .eq('id', id);
 
         if (getItemError) {
             throw getItemError;
@@ -122,7 +163,7 @@ app.delete('/itens/:nome', async(req, res) => {
             const { error: deleteItemError } = await supabase
                 .from('itens')
                 .delete()
-                .eq('nome', nome);
+                .eq('id', id);
 
             if (deleteItemError) {
                 throw deleteItemError;
