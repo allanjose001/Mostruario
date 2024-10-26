@@ -11,10 +11,9 @@ const supabase = createClient(supaUrl, chaveSupa);
 
 //tratamento de dados da imagem
 const upload = multer({ 
-    dest: 'fotos/',
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 }, //limite de 5mb
     fileFilter: (req, file, cb) => {
-        console.log("tentando fazer upload de: ", file);
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
@@ -32,18 +31,17 @@ app.post('/fotos', upload.single('imagem'), async (req, res) => {
         let imagemUrl = null;
 
         if (req.file) {
-            const imagemPath = req.file.path;
-            const imagemNome = path.basename(req.file.originalname);
-            console.log(path.basename(req.file.originalname));
+            const imagemNome = `${Date.now()}_${req.file.originalname}`;
+            console.log(req.file.originalname);
             
             const { data, error } = await supabase.storage
-            .from('imagens')
-            .upload(imagemNome, fs.createReadStream(imagemPath), {
-                cacheControl: '3600',
-                upsert: false,
-                contentType: req.file.mimetype,
-                duplex: 'half',
-            });
+                .from('imagens')
+                .upload(imagemNome, req.file.mimetype, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: req.file.mimetype,
+                    //duplex: 'half',
+                });
             
             if (error) {
                 console.error("Erro no upload: ", error);
@@ -58,8 +56,8 @@ app.post('/fotos', upload.single('imagem'), async (req, res) => {
         
         const { nome, descricao, preco } = req.body;
         const { error: dbError } = await supabase
-        .from('itens')
-        .insert([{ nome, descricao, preco, imagem_url: imagemUrl }]);
+            .from('itens')
+            .insert([{ nome, descricao, preco, imagem_url: imagemUrl }]);
         
         if (dbError) throw dbError;
         
