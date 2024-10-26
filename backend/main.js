@@ -25,18 +25,22 @@ const upload = multer({
 const app = express();
 app.use(express.json()); //interpretador de Jsons
 
+const FormData = require('form-data');
 //função de salvar a imagem
 app.post('/fotos', upload.single('imagem'), async (req, res) => {
     try {
         let imagemUrl = null;
 
         if (req.file) {
+            console.log(`tamanho do buffer: ${req.file.buffer.length} bytes`);
+
             const imagemNome = `${Date.now()}_${req.file.originalname}`;
+            
             console.log(req.file.originalname);
             
             const { data, error } = await supabase.storage
                 .from('imagens')
-                .upload(imagemNome, req.file.mimetype, {
+                .upload(imagemNome, req.file.buffer, {
                     cacheControl: '3600',
                     upsert: false,
                     contentType: req.file.mimetype,
@@ -63,6 +67,7 @@ app.post('/fotos', upload.single('imagem'), async (req, res) => {
         
         res.status(200).json({ message: 'item salvo com sucesso - backend', imagemUrl });
     } catch (err) {
+        console.error('erro ao salvar imagem: ', err);
         res.status(500).json({ error: err.message });
     }
 });
